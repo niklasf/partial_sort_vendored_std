@@ -3,4 +3,8 @@ name = "partial-sort-bench"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+default = []
+optimize_for_size = []
+
 [dependencies]

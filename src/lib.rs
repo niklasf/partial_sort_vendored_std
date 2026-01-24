@@ -1,8 +1,16 @@
+#![feature(cfg_select)]
+#![feature(core_intrinsics)]
 #![feature(slice_range)]
 
+mod smallsort;
+
+use std::cfg_select;
 use std::intrinsics;
+use std::mem;
 use std::ops::{Range, RangeBounds};
 use std::slice;
+
+use crate::smallsort::insertion_sort_shift_left;
 
 /// Unstable sort called ipnsort by Lukas Bergdoll and Orson Peters.
 /// Design document:
@@ -16,7 +24,7 @@ where
     F: FnMut(&T, &T) -> bool,
 {
     // Arrays of zero-sized types are always all-equal, and thus sorted.
-    if T::IS_ZST {
+    if mem::size_of::<T>() == 0 {
         return;
     }
 
