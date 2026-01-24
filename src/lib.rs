@@ -2,6 +2,8 @@
 #![feature(core_intrinsics)]
 #![feature(slice_range)]
 #![feature(slice_swap_unchecked)]
+#![feature(specialization)]
+#![feature(freeze)]
 
 mod heapsort;
 mod pivot;

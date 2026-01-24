@@ -1,3 +1,9 @@
+use std::marker::Freeze;
+
+pub(crate) trait FreezeMarker {}
+
+impl<T: Freeze> FreezeMarker for T {}
+
 /// Finds a run of sorted elements starting at the beginning of the slice.
 ///
 /// Returns the length of the run, and a bool that is false when the run

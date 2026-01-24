@@ -134,7 +134,6 @@ impl<T: FreezeMarker> UnstableSmallSortFreezeTypeImpl for T {
 }
 
 /// SAFETY: Only used for run-time optimization heuristic.
-#[rustc_unsafe_specialization_marker]
 trait CopyMarker {}
 
 impl<T: Copy> CopyMarker for T {}
