@@ -2,6 +2,7 @@
 #![feature(core_intrinsics)]
 #![feature(slice_range)]
 
+mod pivot;
 mod select;
 mod smallsort;
 
