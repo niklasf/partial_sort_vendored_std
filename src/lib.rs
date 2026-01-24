@@ -1,7 +1,53 @@
 #![feature(slice_range)]
 
+use std::intrinsics;
 use std::ops::{Range, RangeBounds};
 use std::slice;
+
+/// Unstable sort called ipnsort by Lukas Bergdoll and Orson Peters.
+/// Design document:
+/// <https://github.com/Voultapher/sort-research-rs/blob/main/writeup/ipnsort_introduction/text.md>
+///
+/// Upholds all safety properties outlined here:
+/// <https://github.com/Voultapher/sort-research-rs/blob/main/writeup/sort_safety/text.md>
+#[inline(always)]
+pub fn sort<T, F>(v: &mut [T], is_less: &mut F)
+where
+    F: FnMut(&T, &T) -> bool,
+{
+    // Arrays of zero-sized types are always all-equal, and thus sorted.
+    if T::IS_ZST {
+        return;
+    }
+
+    // Instrumenting the standard library showed that 90+% of the calls to sort
+    // by rustc are either of size 0 or 1.
+    let len = v.len();
+    if intrinsics::likely(len < 2) {
+        return;
+    }
+
+    cfg_select! {
+        any(feature = "optimize_for_size", target_pointer_width = "16") => {
+            heapsort::heapsort(v, is_less);
+        }
+        _ => {
+            // More advanced sorting methods than insertion sort are faster if called in
+            // a hot loop for small inputs, but for general-purpose code the small
+            // binary size of insertion sort is more important. The instruction cache in
+            // modern processors is very valuable, and for a single sort call in general
+            // purpose code any gains from an advanced method are cancelled by i-cache
+            // misses during the sort, and thrashing the i-cache for surrounding code.
+            const MAX_LEN_ALWAYS_INSERTION_SORT: usize = 20;
+            if intrinsics::likely(len <= MAX_LEN_ALWAYS_INSERTION_SORT) {
+                insertion_sort_shift_left(v, 1, is_less);
+                return;
+            }
+
+            ipnsort(v, is_less);
+        }
+    }
+}
 
 /// Unstable partial sort the range `start..end`, after which it's guaranteed that:
 ///
@@ -15,7 +61,7 @@ where
     R: RangeBounds<usize>,
 {
     // Arrays of zero-sized types are always all-equal, and thus sorted.
-    if T::IS_ZST {
+    if std::mem::size_of::<T>() == 0 {
         return;
     }
 
