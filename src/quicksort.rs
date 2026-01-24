@@ -1,7 +1,84 @@
-use std::intrinsics;
+//! This module contains an unstable quicksort and two partition implementations.
+
+#[cfg(not(feature = "optimize_for_size"))]
 use std::mem;
 use std::mem::ManuallyDrop;
-use std::ptr;
+use std::{cfg_select, intrinsics, ptr};
+
+#[cfg(not(feature = "optimize_for_size"))]
+use crate::heapsort;
+#[cfg(not(feature = "optimize_for_size"))]
+use crate::pivot::choose_pivot;
+#[cfg(not(feature = "optimize_for_size"))]
+use crate::smallsort::UnstableSmallSortTypeImpl;
+
+/// Sorts `v` recursively.
+///
+/// If the slice had a predecessor in the original array, it is specified as `ancestor_pivot`.
+///
+/// `limit` is the number of allowed imbalanced partitions before switching to `heapsort`. If zero,
+/// this function will immediately switch to heapsort.
+#[cfg(not(feature = "optimize_for_size"))]
+pub(crate) fn quicksort<'a, T, F>(
+    mut v: &'a mut [T],
+    mut ancestor_pivot: Option<&'a T>,
+    mut limit: u32,
+    is_less: &mut F,
+) where
+    F: FnMut(&T, &T) -> bool,
+{
+    loop {
+        if v.len() <= T::small_sort_threshold() {
+            T::small_sort(v, is_less);
+            return;
+        }
+
+        // If too many bad pivot choices were made, simply fall back to heapsort in order to
+        // guarantee `O(N x log(N))` worst-case.
+        if limit == 0 {
+            heapsort::heapsort(v, is_less);
+            return;
+        }
+
+        limit -= 1;
+
+        // Choose a pivot and try guessing whether the slice is already sorted.
+        let pivot_pos = choose_pivot(v, is_less);
+
+        // If the chosen pivot is equal to the predecessor, then it's the smallest element in the
+        // slice. Partition the slice into elements equal to and elements greater than the pivot.
+        // This case is usually hit when the slice contains many duplicate elements.
+        if let Some(p) = ancestor_pivot {
+            if !is_less(p, &v[pivot_pos]) {
+                let num_lt = partition(v, pivot_pos, &mut |a, b| !is_less(b, a));
+
+                // Continue sorting elements greater than the pivot. We know that `num_lt` contains
+                // the pivot. So we can continue after `num_lt`.
+                v = &mut v[(num_lt + 1)..];
+                ancestor_pivot = None;
+                continue;
+            }
+        }
+
+        // Partition the slice.
+        let num_lt = partition(v, pivot_pos, is_less);
+        // SAFETY: partition ensures that `num_lt` will be in-bounds.
+        unsafe { intrinsics::assume(num_lt < v.len()) };
+
+        // Split the slice into `left`, `pivot`, and `right`.
+        let (left, right) = v.split_at_mut(num_lt);
+        let (pivot, right) = right.split_at_mut(1);
+        let pivot = &pivot[0];
+
+        // Recurse into the left side. We have a fixed recursion limit, testing shows no real
+        // benefit for recursing into the shorter side.
+        quicksort(left, ancestor_pivot, limit, is_less);
+
+        // Continue with the right side.
+        v = right;
+        ancestor_pivot = Some(pivot);
+    }
+}
 
 /// Takes the input slice `v` and re-arranges elements such that when the call returns normally
 /// all elements that compare true for `is_less(elem, pivot)` where `pivot == v[pivot_pos]` are

@@ -3,6 +3,7 @@
 #![feature(slice_range)]
 #![feature(slice_swap_unchecked)]
 
+mod heapsort;
 mod pivot;
 mod quicksort;
 mod select;
@@ -15,6 +16,7 @@ use std::mem;
 use std::ops::{Range, RangeBounds};
 use std::slice;
 
+use crate::quicksort::quicksort;
 use crate::select::partition_at_index;
 use crate::shared::find_existing_run;
 use crate::smallsort::insertion_sort_shift_left;
