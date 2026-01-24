@@ -6,6 +6,7 @@
 mod pivot;
 mod quicksort;
 mod select;
+mod shared;
 mod smallsort;
 
 use std::cfg_select;
@@ -15,6 +16,7 @@ use std::ops::{Range, RangeBounds};
 use std::slice;
 
 use crate::select::partition_at_index;
+use crate::shared::find_existing_run;
 use crate::smallsort::insertion_sort_shift_left;
 
 /// Unstable sort called ipnsort by Lukas Bergdoll and Orson Peters.
@@ -108,4 +110,36 @@ where
     }
 
     sort(v, &mut is_less);
+}
+
+/// See [`sort`]
+///
+/// Deliberately don't inline the main sorting routine entrypoint to ensure the
+/// inlined insertion sort i-cache footprint remains minimal.
+#[cfg(not(any(feature = "optimize_for_size", target_pointer_width = "16")))]
+#[inline(never)]
+fn ipnsort<T, F>(v: &mut [T], is_less: &mut F)
+where
+    F: FnMut(&T, &T) -> bool,
+{
+    let len = v.len();
+    let (run_len, was_reversed) = find_existing_run(v, is_less);
+
+    // SAFETY: find_existing_run promises to return a valid run_len.
+    unsafe { intrinsics::assume(run_len <= len) };
+
+    if run_len == len {
+        if was_reversed {
+            v.reverse();
+        }
+
+        // It would be possible to a do in-place merging here for a long existing streak. But that
+        // makes the implementation a lot bigger, users can use `slice::sort` for that use-case.
+        return;
+    }
+
+    // Limit the number of imbalanced partitions to `2 * floor(log2(len))`.
+    // The binary OR by one is used to eliminate the zero-check in the logarithm.
+    let limit = 2 * (len | 1).ilog2();
+    quicksort(v, None, limit, is_less);
 }
