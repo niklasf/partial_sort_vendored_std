@@ -74,8 +74,11 @@ where
 /// 2. Every element in `v[start..end]`, which is sorted, and smaller than or equal to
 /// 3. Every element in `v[end..]`.
 #[inline]
-pub fn partial_sort<T, F, R>(v: &mut [T], range: R, mut is_less: F)
-where
+pub fn partial_sort<T, F, R, const PARTITION_THRESHOLD: usize>(
+    v: &mut [T],
+    range: R,
+    mut is_less: F,
+) where
     F: FnMut(&T, &T) -> bool,
     R: RangeBounds<usize>,
 {
@@ -104,7 +107,6 @@ where
     // A heuristic factor to decide whether to partition the slice or not.
     // If the range bound is close to the edges of the slice, it's not worth
     // partitioning first.
-    const PARTITION_THRESHOLD: usize = 8;
     let mut v = v;
     if end + PARTITION_THRESHOLD <= len {
         v = partition_at_index(v, end - 1, &mut is_less).0;
