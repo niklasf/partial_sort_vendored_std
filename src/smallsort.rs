@@ -15,55 +15,6 @@ use std::{hint, intrinsics, ptr, slice};
 
 /// Using a trait allows us to specialize on `Freeze` which in turn allows us to make safe
 /// abstractions.
-pub(crate) trait StableSmallSortTypeImpl: Sized {
-    /// For which input length <= return value of this function, is it valid to call `small_sort`.
-    fn small_sort_threshold() -> usize;
-
-    /// Sorts `v` using strategies optimized for small sizes.
-    fn small_sort<F: FnMut(&Self, &Self) -> bool>(
-        v: &mut [Self],
-        scratch: &mut [MaybeUninit<Self>],
-        is_less: &mut F,
-    );
-}
-
-impl<T> StableSmallSortTypeImpl for T {
-    #[inline(always)]
-    default fn small_sort_threshold() -> usize {
-        // Optimal number of comparisons, and good perf.
-        SMALL_SORT_FALLBACK_THRESHOLD
-    }
-
-    #[inline(always)]
-    default fn small_sort<F: FnMut(&T, &T) -> bool>(
-        v: &mut [T],
-        _scratch: &mut [MaybeUninit<T>],
-        is_less: &mut F,
-    ) {
-        if v.len() >= 2 {
-            insertion_sort_shift_left(v, 1, is_less);
-        }
-    }
-}
-
-impl<T: FreezeMarker> StableSmallSortTypeImpl for T {
-    #[inline(always)]
-    fn small_sort_threshold() -> usize {
-        SMALL_SORT_GENERAL_THRESHOLD
-    }
-
-    #[inline(always)]
-    fn small_sort<F: FnMut(&T, &T) -> bool>(
-        v: &mut [T],
-        scratch: &mut [MaybeUninit<T>],
-        is_less: &mut F,
-    ) {
-        small_sort_general_with_scratch(v, scratch, is_less);
-    }
-}
-
-/// Using a trait allows us to specialize on `Freeze` which in turn allows us to make safe
-/// abstractions.
 pub(crate) trait UnstableSmallSortTypeImpl: Sized {
     /// For which input length <= return value of this function, is it valid to call `small_sort`.
     fn small_sort_threshold() -> usize;
