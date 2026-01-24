@@ -1,4 +1,7 @@
-use std::ops::RangeBounds;
+#![feature(slice_range)]
+
+use std::ops::{Range, RangeBounds};
+use std::slice;
 
 /// Unstable partial sort the range `start..end`, after which it's guaranteed that:
 ///
