@@ -1,8 +1,10 @@
 #![feature(cfg_select)]
 #![feature(core_intrinsics)]
 #![feature(slice_range)]
+#![feature(slice_swap_unchecked)]
 
 mod pivot;
+mod quicksort;
 mod select;
 mod smallsort;
 

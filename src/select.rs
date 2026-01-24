@@ -1,4 +1,5 @@
 use crate::pivot::choose_pivot;
+use crate::quicksort::partition;
 use crate::smallsort::insertion_sort_shift_left;
 
 /// Reorders the slice such that the element at `index` is at its final sorted position.
