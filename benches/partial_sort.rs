@@ -1,4 +1,6 @@
 use rand_distr::Zipf;
+use std::cmp::Ord;
+use std::cmp::Ordering;
 use std::iter;
 use std::ops::Range;
 
@@ -124,7 +126,43 @@ fn u64_descending(len: usize) -> Vec<u64> {
     (0..len as u64).rev().collect()
 }
 
-fn benchmark_u64(c: &mut Criterion) {
+#[repr(C)]
+struct KibibyteBlock {
+    data: [u64; 128],
+}
+
+impl KibibyteBlock {
+    fn new(mut n: u64) -> Self {
+        let mut data = [0; 128];
+        for cell in &mut data {
+            *cell = n;
+            n = n.wrapping_add(1);
+        }
+        Self { data }
+    }
+}
+
+impl Ord for KibibyteBlock {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.data[0].cmp(&other.data[0])
+    }
+}
+
+impl PartialOrd for KibibyteBlock {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for KibibyteBlock {
+    fn eq(&self, other: &Self) -> bool {
+        self.data[0] == other.data[0]
+    }
+}
+
+impl Eq for KibibyteBlock {}
+
+fn benchmark_all(c: &mut Criterion) {
     let scenarios: &[(&str, fn(usize) -> Vec<u64>)] = &[
         ("random", u64_random),
         ("random_z1", |len| u64_random_zipf(len, 1.0)),
@@ -147,11 +185,35 @@ fn benchmark_u64(c: &mut Criterion) {
                         || scenario_setup(len),
                         prefix,
                     );
+
+                    benchmark_algorithms(
+                        c,
+                        &format!("string_{scenario_name}-len_{len}-prefix_{prefix}"),
+                        || {
+                            scenario_setup(len)
+                                .into_iter()
+                                .map(|x| format!("{:10}", x))
+                                .collect()
+                        },
+                        prefix,
+                    );
+
+                    benchmark_algorithms(
+                        c,
+                        &format!("kibibyte_{scenario_name}-len_{len}-prefix_{prefix}"),
+                        || {
+                            scenario_setup(len)
+                                .into_iter()
+                                .map(KibibyteBlock::new)
+                                .collect()
+                        },
+                        prefix,
+                    );
                 }
             }
         }
     }
 }
 
-criterion_group!(benches, benchmark_u64);
+criterion_group!(benches, benchmark_all);
 criterion_main!(benches);
