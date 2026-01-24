@@ -3,8 +3,22 @@ name = "partial-sort-bench"
 version = "0.1.0"
 edition = "2024"
 
+[lib]
+name = "partial_sort_vendored_std"
+bench = false
+
 [features]
 default = []
 optimize_for_size = []
 
+[dev-dependencies]
+criterion = "0.8.1"
+partial_sort_1_0_0 = { package = "partial_sort", version = "1.0.0" }
+rand = "0.9.2"
+
+[[bench]]
+name = "partial_sort"
+harness = false
+
 [dependencies]
+rand_distr = "0.5.1"

@@ -1,4 +1,4 @@
-use partial_sort_bench::partial_sort;
+use partial_sort_vendored_std::partial_sort;
 
 #[test]
 fn test_partial_sort() {
