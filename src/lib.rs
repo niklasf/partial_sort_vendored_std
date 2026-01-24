@@ -1,3 +1,5 @@
+#![allow(internal_features)] // mirroring std as closely as possible
+#![allow(incomplete_features)] // mirroring std as closely as possible
 #![feature(cfg_select)]
 #![feature(core_intrinsics)]
 #![feature(slice_range)]

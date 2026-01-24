@@ -81,12 +81,12 @@ where
     });
 }
 
-fn random_u64(len: usize) -> Vec<u64> {
+fn u64_random(len: usize) -> Vec<u64> {
     let mut rng = rand::rng();
     (0..len).map(|_| rng.random::<u64>()).collect()
 }
 
-fn random_uniform_u64(len: usize, range: Range<u64>) -> Vec<u64>
+fn u64_random_uniform(len: usize, range: Range<u64>) -> Vec<u64>
 where
 {
     let mut rng = rand::rng();
@@ -94,13 +94,13 @@ where
     (0..len).map(|_| dist.sample(&mut rng)).collect()
 }
 
-fn random_x_percent_u64(len: usize, mid_percent: f64) -> Vec<u64> {
+fn u64_random_x_percent(len: usize, mid_percent: f64) -> Vec<u64> {
     let len_const = ((len as f64 / 100.0) * (100.0 - mid_percent)).round() as usize;
     let len_random = len - len_const;
 
     let mut v: Vec<u64> = iter::repeat(u64::MAX / 2)
         .take(len_const)
-        .chain(random_u64(len_random))
+        .chain(u64_random(len_random))
         .collect();
 
     let mut rng = rand::rng();
@@ -108,40 +108,44 @@ fn random_x_percent_u64(len: usize, mid_percent: f64) -> Vec<u64> {
     v
 }
 
-fn random_zipf_u64(len: usize, exponent: f64) -> Vec<u64> {
+fn u64_random_zipf(len: usize, exponent: f64) -> Vec<u64> {
     let mut rng = rand::rng();
     let dist = Zipf::new(len as f64, exponent).expect("zipf");
     (0..len).map(|_| dist.sample(&mut rng) as u64).collect()
 }
 
-fn random_sorted_u64(len: usize, sorted_percent: f64) -> Vec<u64> {
-    let mut v = random_u64(len);
-    let len_sorted = ((len as f64) * (sorted_percent / 100.0)).round() as usize;
-    v[..len_sorted].sort_unstable();
-    v
+fn u64_ascending(len: usize) -> Vec<u64> {
+    (0..len as u64).collect()
+}
+
+fn u64_descending(len: usize) -> Vec<u64> {
+    (0..len as u64).rev().collect()
 }
 
 fn benchmark_u64(c: &mut Criterion) {
     let scenarios_u64: &[(&str, fn(usize) -> Vec<u64>)] = &[
-        ("random_uniform_u64", |len| {
-            random_uniform_u64(len, 0..u64::MAX)
-        }),
-        ("random_x_percent_u64", |len| {
-            random_x_percent_u64(len, 50.0)
-        }),
+        ("u64_random", u64_random),
+        ("u64_random_z1", |len| u64_random_zipf(len, 1.0)),
+        ("u64_random_d20", |len| u64_random_uniform(len, 0..20)),
+        ("u64_random_p5", |len| u64_random_x_percent(len, 5.0)),
+        ("u64_random_p95", |len| u64_random_x_percent(len, 95.0)),
+        ("u64_ascending", u64_ascending),
+        ("u64_descending", u64_descending),
     ];
 
-    let lengths = [2, 4, 8, 100, 200];
+    let lengths = [2, 4, 8, 10, 20, 50, 100, 200, 500, 1000, 2000, 10000];
 
-    for len in lengths {
-        for prefix in lengths {
-            if prefix <= len {
-                benchmark_algorithms(
-                    c,
-                    &format!("random_u64 len_{len} prefix_{prefix}"),
-                    || random_u64(len),
-                    prefix,
-                );
+    for (scenario_name, scenario_setup) in scenarios_u64 {
+        for len in lengths {
+            for prefix in lengths {
+                if prefix <= len {
+                    benchmark_algorithms(
+                        c,
+                        &format!("{scenario_name} len_{len} prefix_{prefix}"),
+                        || scenario_setup(len),
+                        prefix,
+                    );
+                }
             }
         }
     }
