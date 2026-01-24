@@ -1,3 +1,5 @@
+use std::mem;
+
 use crate::pivot::choose_pivot;
 use crate::quicksort::partition;
 use crate::smallsort::insertion_sort_shift_left;
@@ -162,7 +164,7 @@ fn median_of_medians<T, F: FnMut(&T, &T) -> bool>(mut v: &mut [T], is_less: &mut
     debug_assert!(k < v.len());
 
     // If T is as ZST, `partition_at_index` will already return early.
-    debug_assert!(!T::IS_ZST);
+    debug_assert!(mem::size_of::<T>() != 0);
 
     // We now know that `k < v.len() <= isize::MAX`
     loop {
