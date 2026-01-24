@@ -206,3 +206,111 @@ fn median_of_medians<T, F: FnMut(&T, &T) -> bool>(mut v: &mut [T], is_less: &mut
         }
     }
 }
+
+// Optimized for when `k` lies somewhere in the middle of the slice. Selects a pivot
+// as close as possible to the median of the slice. For more details on how the algorithm
+// operates, refer to the paper <https://drops.dagstuhl.de/opus/volltexte/2017/7612/pdf/LIPIcs-SEA-2017-24.pdf>.
+fn median_of_ninthers<T, F: FnMut(&T, &T) -> bool>(v: &mut [T], is_less: &mut F) -> usize {
+    // use `saturating_mul` so the multiplication doesn't overflow on 16-bit platforms.
+    let frac = if v.len() <= 1024 {
+        v.len() / 12
+    } else if v.len() <= 128_usize.saturating_mul(1024) {
+        v.len() / 64
+    } else {
+        v.len() / 1024
+    };
+
+    let pivot = frac / 2;
+    let lo = v.len() / 2 - pivot;
+    let hi = frac + lo;
+    let gap = (v.len() - 9 * frac) / 4;
+    let mut a = lo - 4 * frac - gap;
+    let mut b = hi + gap;
+    for i in lo..hi {
+        ninther(
+            v,
+            is_less,
+            a,
+            i - frac,
+            b,
+            a + 1,
+            i,
+            b + 1,
+            a + 2,
+            i + frac,
+            b + 2,
+        );
+        a += 3;
+        b += 3;
+    }
+
+    median_of_medians(&mut v[lo..lo + frac], is_less, pivot);
+
+    partition(v, lo + pivot, is_less)
+}
+
+/// Moves around the 9 elements at the indices a..i, such that
+/// `v[d]` contains the median of the 9 elements and the other
+/// elements are partitioned around it.
+fn ninther<T, F: FnMut(&T, &T) -> bool>(
+    v: &mut [T],
+    is_less: &mut F,
+    a: usize,
+    mut b: usize,
+    c: usize,
+    mut d: usize,
+    e: usize,
+    mut f: usize,
+    g: usize,
+    mut h: usize,
+    i: usize,
+) {
+    b = median_idx(v, is_less, a, b, c);
+    h = median_idx(v, is_less, g, h, i);
+    if is_less(&v[h], &v[b]) {
+        mem::swap(&mut b, &mut h);
+    }
+    if is_less(&v[f], &v[d]) {
+        mem::swap(&mut d, &mut f);
+    }
+    if is_less(&v[e], &v[d]) {
+        // do nothing
+    } else if is_less(&v[f], &v[e]) {
+        d = f;
+    } else {
+        if is_less(&v[e], &v[b]) {
+            v.swap(e, b);
+        } else if is_less(&v[h], &v[e]) {
+            v.swap(e, h);
+        }
+        return;
+    }
+    if is_less(&v[d], &v[b]) {
+        d = b;
+    } else if is_less(&v[h], &v[d]) {
+        d = h;
+    }
+
+    v.swap(d, e);
+}
+
+/// returns the index pointing to the median of the 3
+/// elements `v[a]`, `v[b]` and `v[c]`
+fn median_idx<T, F: FnMut(&T, &T) -> bool>(
+    v: &[T],
+    is_less: &mut F,
+    mut a: usize,
+    b: usize,
+    mut c: usize,
+) -> usize {
+    if is_less(&v[c], &v[a]) {
+        mem::swap(&mut a, &mut c);
+    }
+    if is_less(&v[c], &v[b]) {
+        return c;
+    }
+    if is_less(&v[b], &v[a]) {
+        return a;
+    }
+    b
+}
