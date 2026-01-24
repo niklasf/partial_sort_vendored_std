@@ -2,6 +2,7 @@
 #![feature(core_intrinsics)]
 #![feature(slice_range)]
 
+mod select;
 mod smallsort;
 
 use std::cfg_select;
@@ -10,6 +11,7 @@ use std::mem;
 use std::ops::{Range, RangeBounds};
 use std::slice;
 
+use crate::select::partition_at_index;
 use crate::smallsort::insertion_sort_shift_left;
 
 /// Unstable sort called ipnsort by Lukas Bergdoll and Orson Peters.
