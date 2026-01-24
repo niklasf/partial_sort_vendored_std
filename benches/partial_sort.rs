@@ -11,7 +11,9 @@ where
     T: Ord,
     F: FnMut() -> Vec<T> + Clone,
 {
-    c.bench_function(&format!("{name} select_nth"), |b| {
+    let mut group = c.benchmark_group(name);
+
+    group.bench_function("select_nth", |b| {
         b.iter_batched_ref(
             setup.clone(),
             |v| {
@@ -22,7 +24,7 @@ where
         );
     });
 
-    c.bench_function(&format!("{name} partial_sort_1_0_0"), |b| {
+    group.bench_function("partial_sort_1_0_0", |b| {
         b.iter_batched_ref(
             setup.clone(),
             |v| partial_sort_1_0_0::partial_sort(v, prefix, |a, b| a.lt(b)),
@@ -30,7 +32,7 @@ where
         );
     });
 
-    c.bench_function(&format!("{name} vendored_std_1"), |b| {
+    group.bench_function("vendored_std_1", |b| {
         b.iter_batched_ref(
             setup.clone(),
             |v| {
@@ -40,7 +42,7 @@ where
         );
     });
 
-    c.bench_function(&format!("{name} vendored_std_2"), |b| {
+    group.bench_function("vendored_std_2", |b| {
         b.iter_batched_ref(
             setup.clone(),
             |v| {
@@ -50,7 +52,7 @@ where
         );
     });
 
-    c.bench_function(&format!("{name} vendored_std_4"), |b| {
+    group.bench_function("vendored_std_4", |b| {
         b.iter_batched_ref(
             setup.clone(),
             |v| {
@@ -60,7 +62,7 @@ where
         );
     });
 
-    c.bench_function(&format!("{name} vendored_std_8"), |b| {
+    group.bench_function("vendored_std_8", |b| {
         b.iter_batched_ref(
             setup.clone(),
             |v| {
@@ -70,7 +72,7 @@ where
         );
     });
 
-    c.bench_function(&format!("{name} vendored_std_16"), |b| {
+    group.bench_function("vendored_std_16", |b| {
         b.iter_batched_ref(
             setup.clone(),
             |v| {
@@ -123,25 +125,25 @@ fn u64_descending(len: usize) -> Vec<u64> {
 }
 
 fn benchmark_u64(c: &mut Criterion) {
-    let scenarios_u64: &[(&str, fn(usize) -> Vec<u64>)] = &[
-        ("u64_random", u64_random),
-        ("u64_random_z1", |len| u64_random_zipf(len, 1.0)),
-        ("u64_random_d20", |len| u64_random_uniform(len, 0..20)),
-        ("u64_random_p5", |len| u64_random_x_percent(len, 5.0)),
-        ("u64_random_p95", |len| u64_random_x_percent(len, 95.0)),
-        ("u64_ascending", u64_ascending),
-        ("u64_descending", u64_descending),
+    let scenarios: &[(&str, fn(usize) -> Vec<u64>)] = &[
+        ("random", u64_random),
+        ("random_z1", |len| u64_random_zipf(len, 1.0)),
+        ("random_d20", |len| u64_random_uniform(len, 0..20)),
+        ("random_p5", |len| u64_random_x_percent(len, 5.0)),
+        ("random_p95", |len| u64_random_x_percent(len, 95.0)),
+        ("ascending", u64_ascending),
+        ("descending", u64_descending),
     ];
 
-    let lengths = [2, 4, 8, 10, 20, 50, 100, 200, 500, 1000, 2000, 10000];
+    let lengths = [2, 4, 8, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
 
-    for (scenario_name, scenario_setup) in scenarios_u64 {
+    for (scenario_name, scenario_setup) in scenarios {
         for len in lengths {
             for prefix in lengths {
                 if prefix <= len {
                     benchmark_algorithms(
                         c,
-                        &format!("{scenario_name} len_{len} prefix_{prefix}"),
+                        &format!("u64_{scenario_name}-len_{len}-prefix_{prefix}"),
                         || scenario_setup(len),
                         prefix,
                     );
