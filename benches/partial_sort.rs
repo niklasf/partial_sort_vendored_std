@@ -7,7 +7,6 @@ use std::iter;
 use std::ops::Range;
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
-use partial_sort_vendored_std::partial_sort as partial_sort_vendored_std;
 use rand::{distr::Uniform, prelude::*};
 
 #[derive(Debug, Copy, Clone)]
@@ -29,7 +28,7 @@ where
 {
     let mut group = c.benchmark_group(name);
 
-    let lengths = [2, 4, 8, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
+    let lengths = [1, 2, 3, 4, 5, 8, 10, 12, 15, 18, 20, 25, 30, 40, 50, 100, 200, 300, 400, 500, 1000, 2000, 3000, 4000, 5000, 10000];
 
     for len in lengths {
         for prefix in lengths {
@@ -60,93 +59,13 @@ where
                 );
 
                 group.bench_with_input(
-                    BenchmarkId::new("vendored_std_1", input),
+                    BenchmarkId::new("vendored_std", input),
                     &input,
                     |b, _| {
                         b.iter_batched_ref(
                             || setup(len),
                             |v| {
-                                partial_sort_vendored_std::<_, _, _, 1>(v, ..prefix, |a, b| {
-                                    a.lt(b)
-                                });
-                            },
-                            BatchSize::SmallInput,
-                        );
-                    },
-                );
-
-                group.bench_with_input(
-                    BenchmarkId::new("vendored_std_2", input),
-                    &input,
-                    |b, _| {
-                        b.iter_batched_ref(
-                            || setup(len),
-                            |v| {
-                                partial_sort_vendored_std::<_, _, _, 2>(v, ..prefix, |a, b| {
-                                    a.lt(b)
-                                });
-                            },
-                            BatchSize::SmallInput,
-                        );
-                    },
-                );
-
-                group.bench_with_input(
-                    BenchmarkId::new("vendored_std_4", input),
-                    &input,
-                    |b, _| {
-                        b.iter_batched_ref(
-                            || setup(len),
-                            |v| {
-                                partial_sort_vendored_std::<_, _, _, 4>(v, ..prefix, |a, b| {
-                                    a.lt(b)
-                                });
-                            },
-                            BatchSize::SmallInput,
-                        );
-                    },
-                );
-
-                group.bench_with_input(
-                    BenchmarkId::new("vendored_std_8", input),
-                    &input,
-                    |b, _| {
-                        b.iter_batched_ref(
-                            || setup(len),
-                            |v| {
-                                partial_sort_vendored_std::<_, _, _, 8>(v, ..prefix, |a, b| {
-                                    a.lt(b)
-                                });
-                            },
-                            BatchSize::SmallInput,
-                        );
-                    },
-                );
-
-                group.bench_with_input(
-                    BenchmarkId::new("vendored_std_12", input),
-                    &input,
-                    |b, _| {
-                        b.iter_batched_ref(
-                            || setup(len),
-                            |v| {
-                                partial_sort_vendored_std::<_, _, _, 12>(v, ..prefix, |a, b| {
-                                    a.lt(b)
-                                });
-                            },
-                            BatchSize::SmallInput,
-                        );
-                    },
-                );
-
-                group.bench_with_input(
-                    BenchmarkId::new("vendored_std_16", input),
-                    &input,
-                    |b, _| {
-                        b.iter_batched_ref(
-                            || setup(len),
-                            |v| {
-                                partial_sort_vendored_std::<_, _, _, 16>(v, ..prefix, |a, b| {
+                                partial_sort_vendored_std::partial_sort(v, ..prefix, |a, b| {
                                     a.lt(b)
                                 });
                             },
