@@ -124,6 +124,22 @@ where
                 );
 
                 group.bench_with_input(
+                    BenchmarkId::new("vendored_std_12", input),
+                    &input,
+                    |b, _| {
+                        b.iter_batched_ref(
+                            || setup(len),
+                            |v| {
+                                partial_sort_vendored_std::<_, _, _, 12>(v, ..prefix, |a, b| {
+                                    a.lt(b)
+                                });
+                            },
+                            BatchSize::SmallInput,
+                        );
+                    },
+                );
+
+                group.bench_with_input(
                     BenchmarkId::new("vendored_std_16", input),
                     &input,
                     |b, _| {
