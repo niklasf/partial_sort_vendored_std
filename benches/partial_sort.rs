@@ -12,12 +12,12 @@ use rand::{distr::Uniform, prelude::*};
 #[derive(Debug, Copy, Clone)]
 struct Input {
     len: usize,
-    prefix: usize,
+    prefix_percent: u32,
 }
 
 impl fmt::Display for Input {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "len_{}-prefix_{}", self.len, self.prefix)
+        write!(f, "len_{}-prefix_{}", self.len, self.prefix_percent)
     }
 }
 
@@ -28,52 +28,59 @@ where
 {
     let mut group = c.benchmark_group(name);
 
-    let lengths = [1, 2, 3, 4, 5, 8, 10, 12, 15, 18, 20, 25, 30, 40, 50, 100, 200, 300, 400, 500, 1000, 2000, 3000, 4000, 5000, 10000];
+    let lengths = [
+        1, 2, 3, 4, 5, 8, 10, 12, 15, 18, 20, 25, 30, 40, 50, 100, 200, 300, 400, 500, 1000, 2000,
+        3000, 4000, 5000, 10000,
+    ];
+    let prefix_percents = [
+        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 25, 30, 35, 40, 45,
+        50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100,
+    ];
 
     for len in lengths {
-        for prefix in lengths {
-            if prefix <= len {
-                let input = Input { len, prefix };
+        for prefix_percent in prefix_percents {
+            let prefix = (len as f64 * (prefix_percent as f64 / 100.0)).round() as usize;
+            if prefix < 1 {
+                continue;
+            }
 
-                group.bench_with_input(BenchmarkId::new("select_nth", input), &input, |b, _| {
+            let input = Input {
+                len,
+                prefix_percent,
+            };
+
+            group.bench_with_input(BenchmarkId::new("select_nth", input), &input, |b, _| {
+                b.iter_batched_ref(
+                    || setup(len),
+                    |v| {
+                        let (p, _, _) = v.select_nth_unstable(prefix - 1);
+                        p.sort_unstable();
+                    },
+                    BatchSize::SmallInput,
+                );
+            });
+
+            group.bench_with_input(
+                BenchmarkId::new("partial_sort_1_0_0", input),
+                &input,
+                |b, _| {
                     b.iter_batched_ref(
                         || setup(len),
-                        |v| {
-                            let (p, _, _) = v.select_nth_unstable(prefix - 1);
-                            p.sort_unstable();
-                        },
+                        |v| partial_sort_1_0_0::partial_sort(v, prefix, |a, b| a.lt(b)),
                         BatchSize::SmallInput,
                     );
-                });
+                },
+            );
 
-                group.bench_with_input(
-                    BenchmarkId::new("partial_sort_1_0_0", input),
-                    &input,
-                    |b, _| {
-                        b.iter_batched_ref(
-                            || setup(len),
-                            |v| partial_sort_1_0_0::partial_sort(v, prefix, |a, b| a.lt(b)),
-                            BatchSize::SmallInput,
-                        );
+            group.bench_with_input(BenchmarkId::new("vendored_std", input), &input, |b, _| {
+                b.iter_batched_ref(
+                    || setup(len),
+                    |v| {
+                        partial_sort_vendored_std::partial_sort(v, ..prefix, |a, b| a.lt(b));
                     },
+                    BatchSize::SmallInput,
                 );
-
-                group.bench_with_input(
-                    BenchmarkId::new("vendored_std", input),
-                    &input,
-                    |b, _| {
-                        b.iter_batched_ref(
-                            || setup(len),
-                            |v| {
-                                partial_sort_vendored_std::partial_sort(v, ..prefix, |a, b| {
-                                    a.lt(b)
-                                });
-                            },
-                            BatchSize::SmallInput,
-                        );
-                    },
-                );
-            }
+            });
         }
     }
 
