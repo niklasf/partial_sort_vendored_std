@@ -1,6 +1,8 @@
+use criterion::BenchmarkId;
 use rand_distr::Zipf;
 use std::cmp::Ord;
 use std::cmp::Ordering;
+use std::fmt;
 use std::iter;
 use std::ops::Range;
 
@@ -8,81 +10,139 @@ use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use partial_sort_vendored_std::partial_sort as partial_sort_vendored_std;
 use rand::{distr::Uniform, prelude::*};
 
-fn benchmark_algorithms<T, F>(c: &mut Criterion, name: &str, setup: F, prefix: usize)
+#[derive(Debug, Copy, Clone)]
+struct Input {
+    len: usize,
+    prefix: usize,
+}
+
+impl fmt::Display for Input {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "len_{}-prefix_{}", self.len, self.prefix)
+    }
+}
+
+fn benchmark_algorithms<T, F>(c: &mut Criterion, name: &str, mut setup: F)
 where
     T: Ord,
-    F: FnMut() -> Vec<T> + Clone,
+    F: FnMut(usize) -> Vec<T> + Clone,
 {
     let mut group = c.benchmark_group(name);
 
-    group.bench_function("select_nth", |b| {
-        b.iter_batched_ref(
-            setup.clone(),
-            |v| {
-                let (p, _, _) = v.select_nth_unstable(prefix - 1);
-                p.sort_unstable();
-            },
-            BatchSize::SmallInput,
-        );
-    });
+    let lengths = [2, 4, 8, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
 
-    group.bench_function("partial_sort_1_0_0", |b| {
-        b.iter_batched_ref(
-            setup.clone(),
-            |v| partial_sort_1_0_0::partial_sort(v, prefix, |a, b| a.lt(b)),
-            BatchSize::SmallInput,
-        );
-    });
+    for len in lengths {
+        for prefix in lengths {
+            if prefix <= len {
+                let input = Input { len, prefix };
 
-    group.bench_function("vendored_std_1", |b| {
-        b.iter_batched_ref(
-            setup.clone(),
-            |v| {
-                partial_sort_vendored_std::<_, _, _, 1>(v, ..prefix, |a, b| a.lt(b));
-            },
-            BatchSize::SmallInput,
-        );
-    });
+                group.bench_with_input(BenchmarkId::new("select_nth", input), &input, |b, _| {
+                    b.iter_batched_ref(
+                        || setup(len),
+                        |v| {
+                            let (p, _, _) = v.select_nth_unstable(prefix - 1);
+                            p.sort_unstable();
+                        },
+                        BatchSize::SmallInput,
+                    );
+                });
 
-    group.bench_function("vendored_std_2", |b| {
-        b.iter_batched_ref(
-            setup.clone(),
-            |v| {
-                partial_sort_vendored_std::<_, _, _, 2>(v, ..prefix, |a, b| a.lt(b));
-            },
-            BatchSize::SmallInput,
-        );
-    });
+                group.bench_with_input(
+                    BenchmarkId::new("partial_sort_1_0_0", input),
+                    &input,
+                    |b, _| {
+                        b.iter_batched_ref(
+                            || setup(len),
+                            |v| partial_sort_1_0_0::partial_sort(v, prefix, |a, b| a.lt(b)),
+                            BatchSize::SmallInput,
+                        );
+                    },
+                );
 
-    group.bench_function("vendored_std_4", |b| {
-        b.iter_batched_ref(
-            setup.clone(),
-            |v| {
-                partial_sort_vendored_std::<_, _, _, 4>(v, ..prefix, |a, b| a.lt(b));
-            },
-            BatchSize::SmallInput,
-        );
-    });
+                group.bench_with_input(
+                    BenchmarkId::new("vendored_std_1", input),
+                    &input,
+                    |b, _| {
+                        b.iter_batched_ref(
+                            || setup(len),
+                            |v| {
+                                partial_sort_vendored_std::<_, _, _, 1>(v, ..prefix, |a, b| {
+                                    a.lt(b)
+                                });
+                            },
+                            BatchSize::SmallInput,
+                        );
+                    },
+                );
 
-    group.bench_function("vendored_std_8", |b| {
-        b.iter_batched_ref(
-            setup.clone(),
-            |v| {
-                partial_sort_vendored_std::<_, _, _, 8>(v, ..prefix, |a, b| a.lt(b));
-            },
-            BatchSize::SmallInput,
-        );
-    });
+                group.bench_with_input(
+                    BenchmarkId::new("vendored_std_2", input),
+                    &input,
+                    |b, _| {
+                        b.iter_batched_ref(
+                            || setup(len),
+                            |v| {
+                                partial_sort_vendored_std::<_, _, _, 2>(v, ..prefix, |a, b| {
+                                    a.lt(b)
+                                });
+                            },
+                            BatchSize::SmallInput,
+                        );
+                    },
+                );
 
-    group.bench_function("vendored_std_16", |b| {
-        b.iter_batched_ref(
-            setup.clone(),
-            |v| {
-                partial_sort_vendored_std::<_, _, _, 16>(v, ..prefix, |a, b| a.lt(b));
-            },
-            BatchSize::SmallInput,
-        );
-    });
+                group.bench_with_input(
+                    BenchmarkId::new("vendored_std_4", input),
+                    &input,
+                    |b, _| {
+                        b.iter_batched_ref(
+                            || setup(len),
+                            |v| {
+                                partial_sort_vendored_std::<_, _, _, 4>(v, ..prefix, |a, b| {
+                                    a.lt(b)
+                                });
+                            },
+                            BatchSize::SmallInput,
+                        );
+                    },
+                );
+
+                group.bench_with_input(
+                    BenchmarkId::new("vendored_std_8", input),
+                    &input,
+                    |b, _| {
+                        b.iter_batched_ref(
+                            || setup(len),
+                            |v| {
+                                partial_sort_vendored_std::<_, _, _, 8>(v, ..prefix, |a, b| {
+                                    a.lt(b)
+                                });
+                            },
+                            BatchSize::SmallInput,
+                        );
+                    },
+                );
+
+                group.bench_with_input(
+                    BenchmarkId::new("vendored_std_16", input),
+                    &input,
+                    |b, _| {
+                        b.iter_batched_ref(
+                            || setup(len),
+                            |v| {
+                                partial_sort_vendored_std::<_, _, _, 16>(v, ..prefix, |a, b| {
+                                    a.lt(b)
+                                });
+                            },
+                            BatchSize::SmallInput,
+                        );
+                    },
+                );
+            }
+        }
+    }
+
+    group.finish();
 }
 
 fn u64_random(len: usize) -> Vec<u64> {
@@ -173,45 +233,22 @@ fn benchmark_all(c: &mut Criterion) {
         ("descending", u64_descending),
     ];
 
-    let lengths = [2, 4, 8, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
-
     for (scenario_name, scenario_setup) in scenarios {
-        for len in lengths {
-            for prefix in lengths {
-                if prefix <= len {
-                    benchmark_algorithms(
-                        c,
-                        &format!("u64_{scenario_name}-len_{len}-prefix_{prefix}"),
-                        || scenario_setup(len),
-                        prefix,
-                    );
+        benchmark_algorithms(c, &format!("u64_{scenario_name}"), scenario_setup);
 
-                    benchmark_algorithms(
-                        c,
-                        &format!("string_{scenario_name}-len_{len}-prefix_{prefix}"),
-                        || {
-                            scenario_setup(len)
-                                .into_iter()
-                                .map(|x| format!("{:10}", x))
-                                .collect()
-                        },
-                        prefix,
-                    );
+        benchmark_algorithms(c, &format!("string_{scenario_name}"), |len| {
+            scenario_setup(len)
+                .into_iter()
+                .map(|x| format!("{:10}", x))
+                .collect()
+        });
 
-                    benchmark_algorithms(
-                        c,
-                        &format!("kibibyte_{scenario_name}-len_{len}-prefix_{prefix}"),
-                        || {
-                            scenario_setup(len)
-                                .into_iter()
-                                .map(KibibyteBlock::new)
-                                .collect()
-                        },
-                        prefix,
-                    );
-                }
-            }
-        }
+        benchmark_algorithms(c, &format!("kibibyte_{scenario_name}"), |len| {
+            scenario_setup(len)
+                .into_iter()
+                .map(KibibyteBlock::new)
+                .collect()
+        });
     }
 }
 
