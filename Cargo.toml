@@ -12,13 +12,11 @@ default = []
 optimize_for_size = []
 
 [dev-dependencies]
-criterion = "0.8.1"
+criterion = { version = "0.8.1", features = ["csv_output"] }
 partial_sort_1_0_0 = { package = "partial_sort", version = "1.0.0" }
 rand = "0.9.2"
+rand_distr = "0.5.1"
 
 [[bench]]
 name = "partial_sort"
 harness = false
-
-[dependencies]
-rand_distr = "0.5.1"
